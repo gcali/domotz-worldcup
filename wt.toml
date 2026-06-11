@@ -1,0 +1,3 @@
+version = 2
+jira_id = "worldcup"
+default_branch = "worldcup"
