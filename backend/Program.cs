@@ -170,6 +170,71 @@ admin.MapPut("/teams/{id:int}/status", async (int id, TeamStatusReq req, AppDbCo
     return Results.Ok(new { team.Id, Status = team.Status.ToString(), team.EliminatedStage, team.IsChampion, team.ManualOverride });
 });
 
+// Export the current bet state (participants + the teams they picked). Teams are
+// identified by FIFA code so the dump stays portable across DB re-seeds.
+admin.MapGet("/export", async (AppDbContext db, CancellationToken ct) =>
+{
+    var players = await db.Players.AsNoTracking()
+        .Include(p => p.Assignments).ThenInclude(a => a.Team)
+        .OrderBy(p => p.Name)
+        .ToListAsync(ct);
+    var dto = new BetStateExport(
+        players.Select(p => new BetStatePlayer(
+            p.Name,
+            p.Assignments.Select(a => a.Team.FifaCode).OrderBy(c => c).ToList()))
+        .ToList());
+    return Results.Ok(dto);
+});
+
+// Completely replace the bet state with the supplied dump. Validated fully before
+// anything is mutated, then applied atomically.
+admin.MapPost("/import", async (BetStateExport req, AppDbContext db, CancellationToken ct) =>
+{
+    if (req?.Players is null)
+        return Results.BadRequest("Body must be { \"players\": [ { \"name\": ..., \"teams\": [...] } ] }");
+
+    var idByCode = (await db.Teams.AsNoTracking().ToListAsync(ct))
+        .ToDictionary(t => t.FifaCode, t => t.Id, StringComparer.OrdinalIgnoreCase);
+
+    var prepared = new List<(string Name, List<int> TeamIds)>();
+    var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var p in req.Players)
+    {
+        if (string.IsNullOrWhiteSpace(p.Name))
+            return Results.BadRequest("Every player needs a non-empty name");
+        var name = p.Name.Trim();
+        if (!seenNames.Add(name))
+            return Results.BadRequest($"Duplicate player '{name}'");
+
+        var ids = new List<int>();
+        foreach (var code in p.Teams ?? new())
+        {
+            if (!idByCode.TryGetValue(code, out var id))
+                return Results.BadRequest($"Unknown team code '{code}' for player '{name}'");
+            if (ids.Contains(id))
+                return Results.BadRequest($"Duplicate team '{code}' for player '{name}'");
+            ids.Add(id);
+        }
+        prepared.Add((name, ids));
+    }
+
+    await using var tx = await db.Database.BeginTransactionAsync(ct);
+    db.Assignments.RemoveRange(db.Assignments);
+    db.Players.RemoveRange(db.Players);
+    await db.SaveChangesAsync(ct);
+
+    foreach (var (name, ids) in prepared)
+        db.Players.Add(new Player
+        {
+            Name = name,
+            Assignments = ids.Select(id => new Assignment { TeamId = id }).ToList(),
+        });
+    await db.SaveChangesAsync(ct);
+    await tx.CommitAsync(ct);
+
+    return Results.Ok(new { ok = true, players = prepared.Count });
+});
+
 admin.MapPost("/sync", async (IngestService ingest, CancellationToken ct) =>
 {
     await ingest.FullSyncAsync(ct);
@@ -196,3 +261,7 @@ record CreatePlayerReq(string Name);
 record CreateAssignmentReq(int PlayerId, string? TeamCode, int? TeamId);
 record TeamStatusReq(string? Status, string? EliminatedStage, bool? IsChampion, bool? ClearOverride);
 record SettingsReq(int? EntryFee, int? LivePollSeconds, int? IdlePollSeconds, string? AdminToken, string? DataProvider);
+
+// ---- Bet-state export/import DTOs ----
+record BetStateExport(List<BetStatePlayer> Players);
+record BetStatePlayer(string Name, List<string> Teams);

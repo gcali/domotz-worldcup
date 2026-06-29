@@ -15,7 +15,7 @@ public record MatchDto(
 public record TeamBoardDto(
     int Id, string Code, string Name, string Flag, string Group,
     string Status, string? EliminatedStage, bool IsChampion,
-    MatchDto? LiveMatch, MatchDto? NextMatch);
+    MatchDto? LiveMatch, MatchDto? NextMatch, MatchDto? LastMatch);
 
 public record PlayerBoardDto(int Id, string Name, int AliveCount, List<TeamBoardDto> Teams);
 
@@ -68,10 +68,14 @@ public class BoardService
                         m.KickoffUtc >= now && (m.HomeTeamId == teamId || m.AwayTeamId == teamId))
             .OrderBy(m => m.KickoffUtc).Select(ToDto).FirstOrDefault();
 
+        MatchDto? LastFor(int teamId) => matches
+            .Where(m => m.Status == MatchStatus.Finished && (m.HomeTeamId == teamId || m.AwayTeamId == teamId))
+            .OrderByDescending(m => m.KickoffUtc).Select(ToDto).FirstOrDefault();
+
         TeamBoardDto TeamDto(Team t) => new(
             t.Id, t.FifaCode, t.Name, t.FlagEmoji, t.GroupName,
             t.Status.ToString(), t.EliminatedStage, t.IsChampion,
-            LiveFor(t.Id), NextFor(t.Id));
+            LiveFor(t.Id), NextFor(t.Id), LastFor(t.Id));
 
         var playerDtos = players.Select(p =>
         {

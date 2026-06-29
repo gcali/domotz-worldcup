@@ -24,6 +24,8 @@
 
 - [ ] `/` shows the pot (💶 €fee × players), player count, and "updated …" freshness
 - [ ] Player cards list owned teams with flags and an "N alive" pill
+- [ ] Each entry shows the **last match result** (W/D/L + score + opponent) and the
+      **next fixture** (opponent + kickoff); an undecided knockout opponent shows **TBD**
 - [ ] Layout is usable at phone width (single column, no overflow)
 
 ## 3. Admin auth gate
@@ -35,8 +37,19 @@
 
 - [ ] Add players; set one team each; board reflects ownership and pot grows
 - [ ] Setting a new team for a player replaces their previous pick (no duplicates)
-- [ ] Teams already taken by another player are disabled in the picker
+- [ ] A team already picked by another player shows the current owner in the picker
+      but is still selectable (two players CAN share the same team)
 - [ ] Removing an assignment / player updates the board
+
+## 4b. Bet-state export / import (admin)
+
+- [ ] **Export JSON** downloads `sweepstake-bets.json` = `{ players: [{ name, teams: [FIFA codes] }] }`
+- [ ] **Import JSON** of a dump prompts for confirmation, then completely replaces all
+      players + picks (board reflects the imported state)
+- [ ] A round-trip (export → import the same file) leaves the bet state unchanged
+- [ ] Import with an unknown team code or empty player name → rejected (400) and the
+      existing state is left untouched (atomic)
+- [ ] Export/import without a valid admin token → 401
 
 ## 5. Elimination logic
 

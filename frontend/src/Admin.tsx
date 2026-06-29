@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { admin, getBoard, getPlayers, getTeams, type Board, type PlayerRow, type Team } from './api'
 
 const TOKEN_KEY = 'wc-admin-token'
@@ -33,6 +33,33 @@ export default function Admin() {
   function saveToken() {
     localStorage.setItem(TOKEN_KEY, token)
     setMsg('Token saved')
+  }
+
+  const importInput = useRef<HTMLInputElement>(null)
+
+  async function exportState() {
+    setMsg(null); setErr(null)
+    try {
+      const data = await admin.exportState(token)
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'sweepstake-bets.json'
+      a.click()
+      URL.revokeObjectURL(url)
+      setMsg('Bet state exported')
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
+  }
+
+  async function importState(file: File) {
+    setMsg(null); setErr(null)
+    try {
+      const data = JSON.parse(await file.text())
+      await admin.importState(token, data)
+      setMsg('Bet state imported — previous bets replaced')
+      await reload()
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
   }
 
   // --- form state ---
@@ -101,7 +128,7 @@ export default function Admin() {
 
       <section className="panel">
         <h2>Team picks</h2>
-        <p className="muted small">One team per player — setting a new team replaces the previous pick. Teams already taken are marked.</p>
+        <p className="muted small">One team per player — setting a new team replaces the previous pick. Teams already taken show the current owner, but can still be picked again.</p>
         <div className="row">
           <select value={assignPlayer} onChange={e => setAssignPlayer(Number(e.target.value) || '')}>
             <option value="">Player…</option>
@@ -119,7 +146,7 @@ export default function Admin() {
                   const takenByOther = owner !== undefined && owner !== Number(assignPlayer)
                   const ownerName = takenByOther ? players.find(p => p.id === owner)?.name : null
                   return (
-                    <option key={t.id} value={t.id} disabled={takenByOther}>
+                    <option key={t.id} value={t.id}>
                       {t.flagEmoji} {t.name}{ownerName ? ` · ${ownerName}` : ''}
                     </option>
                   )
@@ -138,6 +165,28 @@ export default function Admin() {
           >
             Set team
           </button>
+        </div>
+      </section>
+
+      <section className="panel">
+        <h2>Backup / restore bets</h2>
+        <p className="muted small">Export the current bets (players + picked teams) as JSON, or import a dump to <strong>completely replace</strong> the current bet state. Teams are matched by FIFA code.</p>
+        <div className="row">
+          <button onClick={exportState}>⭳ Export JSON</button>
+          <button onClick={() => importInput.current?.click()}>⭱ Import JSON…</button>
+          <input
+            ref={importInput}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (!file) return
+              if (confirm('Importing will permanently replace ALL current players and their picks. Continue?'))
+                importState(file)
+            }}
+          />
         </div>
       </section>
 

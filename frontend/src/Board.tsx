@@ -50,6 +50,46 @@ function opponent(m: Match, teamId: number) {
   return m.home.teamId === teamId ? m.away : m.home
 }
 
+// A finished match seen from one team's side: outcome + "2–1 vs 🇷🇸 Serbia".
+function result(m: Match, teamId: number): { outcome: 'W' | 'D' | 'L'; text: string } {
+  const home = m.home.teamId === teamId
+  const us = (home ? m.homeScore : m.awayScore) ?? 0
+  const them = (home ? m.awayScore : m.homeScore) ?? 0
+  const opp = opponent(m, teamId)
+  const outcome = us > them ? 'W' : us < them ? 'L' : 'D'
+  return { outcome, text: `${us}–${them} vs ${opp.flag ? `${opp.flag} ` : ''}${opp.name}` }
+}
+
+// Opponent label for an upcoming fixture — TBD while the other slot isn't decided.
+function fixtureOpponent(m: Match, teamId: number): string {
+  const opp = opponent(m, teamId)
+  return opp.isPlaceholder ? 'TBD' : `${opp.flag ? `${opp.flag} ` : ''}${opp.name}`
+}
+
+function MatchLines({ team }: { team: TeamBoard }) {
+  const { lastMatch, nextMatch } = team
+  if (!lastMatch && !nextMatch) return null
+  const r = lastMatch ? result(lastMatch, team.id) : null
+  return (
+    <div className="match-lines">
+      {lastMatch && r && (
+        <div className="ml">
+          <span className={`res ${r.outcome}`}>{r.outcome}</span>
+          <span className="ml-text">{r.text}</span>
+          <span className="ml-when">{lastMatch.label}</span>
+        </div>
+      )}
+      {nextMatch && (
+        <div className="ml">
+          <span className="ml-tag">NEXT</span>
+          <span className="ml-text">vs {fixtureOpponent(nextMatch, team.id)}</span>
+          <span className="ml-when">{kickoff(nextMatch.kickoffUtc)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function StatusChip({ team }: { team: TeamBoard | null }) {
   if (!team) return <span className="status-chip none">no team</span>
   if (team.isChampion) return <span className="status-chip champ">🏆 winner</span>
@@ -80,8 +120,6 @@ function TeamHero({ team }: { team: TeamBoard }) {
           <span className="badge out">❌ {team.eliminatedStage ?? 'Out'}</span>
         ) : team.liveMatch ? (
           <span className="badge live">⚽ {scoreText(team.liveMatch)} · {team.liveMatch.minute ?? 'LIVE'} vs {opponent(team.liveMatch, team.id).name}</span>
-        ) : team.nextMatch ? (
-          <span className="badge next">vs {opponent(team.nextMatch, team.id).name} · {kickoff(team.nextMatch.kickoffUtc)}</span>
         ) : (
           <span className="badge ok">🟢 In the running</span>
         )}
@@ -163,7 +201,7 @@ export default function Board() {
                 <StatusChip team={team} />
               </div>
               {team
-                ? <TeamHero team={team} />
+                ? <><TeamHero team={team} /><MatchLines team={team} /></>
                 : <p className="muted small">Waiting for the draw…</p>}
             </article>
           )

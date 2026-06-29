@@ -31,6 +31,7 @@ export interface TeamBoard {
   isChampion: boolean
   liveMatch: Match | null
   nextMatch: Match | null
+  lastMatch: Match | null
 }
 
 export interface PlayerBoard {
@@ -77,6 +78,11 @@ export interface PlayerRow {
   teamIds: number[]
 }
 
+// Portable bet-state dump: participants + their picked teams (by FIFA code).
+export interface BetState {
+  players: { name: string; teams: string[] }[]
+}
+
 // ---- Fetch helpers ----
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url)
@@ -120,6 +126,8 @@ export const admin = {
     payload: { status?: string; eliminatedStage?: string; isChampion?: boolean; clearOverride?: boolean },
   ) => adminFetch(t, `/api/admin/teams/${teamId}/status`, 'PUT', payload),
   sync: (t: string) => adminFetch(t, '/api/admin/sync', 'POST'),
+  exportState: (t: string) => adminFetch(t, '/api/admin/export', 'GET') as Promise<BetState>,
+  importState: (t: string, data: BetState) => adminFetch(t, '/api/admin/import', 'POST', data),
   updateSettings: (
     t: string,
     payload: { entryFee?: number; livePollSeconds?: number; idlePollSeconds?: number; adminToken?: string; dataProvider?: string },

@@ -257,6 +257,33 @@ html, body, #root {
 .badge.next { background: var(--blue-soft); color: var(--blue); }
 .badge.ok { background: var(--green-soft); color: var(--green); }
 
+/* ---- Last result / next fixture lines ---- */
+.match-lines { display: flex; flex-direction: column; gap: 4px; margin: 8px -4px 0; }
+.ml {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.82rem; color: var(--text);
+  padding: 5px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.ml .ml-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml .ml-when { margin-left: auto; color: var(--muted); font-size: 0.74rem; white-space: nowrap; }
+.ml .res {
+  font-weight: 800; font-size: 0.72rem; line-height: 1;
+  width: 18px; height: 18px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 5px;
+}
+.ml .res.W { background: var(--green-soft); color: var(--green); }
+.ml .res.D { background: rgba(138,151,166,0.16); color: var(--muted); }
+.ml .res.L { background: var(--magenta-soft); color: #ff7fb0; }
+.ml .ml-tag {
+  font-weight: 700; font-size: 0.64rem; letter-spacing: 1px;
+  color: var(--blue); background: var(--blue-soft);
+  padding: 2px 6px; border-radius: 5px; flex: none;
+}
+
 .muted { color: var(--muted); }
 .small { font-size: 0.8rem; }
 .error { color: #ff9bbd; background: var(--maroon); border: 1px solid var(--magenta); padding: 10px 14px; border-radius: 8px; }
