@@ -100,6 +100,19 @@ function StatusChip({ team }: { team: TeamBoard | null }) {
   return <span className="status-chip in">in it</span>
 }
 
+const STAGE_SHORT: Record<string, string> = {
+  r32: 'R32', r16: 'R16', qf: 'QF', sf: 'SF', third: '3rd place', final: 'Final',
+}
+
+// Subtitle = where the team is now in the tournament: the round of its current/next match
+// (or the last one it played), falling back to the group name while still in the group stage.
+function teamStage(team: TeamBoard): string {
+  if (team.isChampion) return 'Champion'
+  const active = team.inProgressMatch ?? team.liveMatch ?? team.nextMatch ?? team.lastMatch
+  if (!active || active.stage === 'group') return team.group
+  return STAGE_SHORT[active.stage] ?? team.group
+}
+
 function TeamHero({ team }: { team: TeamBoard }) {
   const cls = team.isChampion
     ? 'team-hero champ'
@@ -113,7 +126,7 @@ function TeamHero({ team }: { team: TeamBoard }) {
       <span className="flag">{team.flag}</span>
       <div className="t-info">
         <span className="t-name">{team.name}</span>
-        <span className="t-group">{team.group}</span>
+        <span className="t-group">{teamStage(team)}</span>
       </div>
       <div className="t-state">
         {team.isChampion ? (
