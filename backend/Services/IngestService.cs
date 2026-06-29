@@ -88,7 +88,7 @@ public class IngestService
         var stale = await _db.Matches.Where(m => m.ExternalId != null && !m.ExternalId.StartsWith(ActivePrefix)).ToListAsync(ct);
         if (stale.Count > 0) _db.Matches.RemoveRange(stale);
 
-        await UpsertAsync(incoming, ct);
+        await UpsertAsync(incoming, pruneToFeed: true, ct);
         await _status.RecomputeAsync(ct);
         await _settings.SetAsync(SettingKeys.LastSyncUtc, DateTime.UtcNow.ToString("o"));
     }
@@ -102,7 +102,7 @@ public class IngestService
             return;
         }
         var live = await Safe(() => _apiFootball.GetLiveMatchesAsync(ct));
-        await UpsertAsync(live, ct);
+        await UpsertAsync(live, pruneToFeed: false, ct);
         await _status.RecomputeAsync(ct);
         await _settings.SetAsync(SettingKeys.LastSyncUtc, DateTime.UtcNow.ToString("o"));
     }
@@ -113,7 +113,12 @@ public class IngestService
         catch (Exception ex) { _log.LogWarning(ex, "provider fetch failed"); return Array.Empty<ProviderMatch>(); }
     }
 
-    private async Task UpsertAsync(IReadOnlyList<ProviderMatch> incoming, CancellationToken ct)
+    /// <param name="pruneToFeed">
+    /// When true (full sync) the incoming list is authoritative: existing rows from the active
+    /// provider that are no longer in the feed are deleted. Must be false for partial refreshes
+    /// (e.g. live-only), which would otherwise wipe every match not currently in play.
+    /// </param>
+    private async Task UpsertAsync(IReadOnlyList<ProviderMatch> incoming, bool pruneToFeed, CancellationToken ct)
     {
         if (incoming.Count == 0) return;
         var teamsByCode = await _db.Teams.ToDictionaryAsync(t => t.FifaCode, ct);
@@ -142,6 +147,19 @@ public class IngestService
             row.HomePlaceholder = row.HomeTeamId is null ? pm.HomePlaceholder : null;
             row.AwayPlaceholder = row.AwayTeamId is null ? pm.AwayPlaceholder : null;
             row.WinnerTeamId = ResolveTeamId(teamsByCode, pm.WinnerFifaCode);
+        }
+
+        if (pruneToFeed)
+        {
+            var incomingIds = incoming.Select(pm => pm.ExternalId).ToHashSet();
+            var orphans = existing
+                .Where(m => m.ExternalId != null && m.ExternalId.StartsWith(ActivePrefix) && !incomingIds.Contains(m.ExternalId))
+                .ToList();
+            if (orphans.Count > 0)
+            {
+                _db.Matches.RemoveRange(orphans);
+                _log.LogInformation("Pruned {Count} fixtures no longer in the {Provider} feed", orphans.Count, ActiveProvider.Name);
+            }
         }
 
         await _db.SaveChangesAsync(ct);

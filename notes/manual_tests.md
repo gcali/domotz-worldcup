@@ -56,6 +56,12 @@
 - [ ] Override a team → **Eliminated**: it shows ❌ + stage, drops out of its owner's
       "alive" count, and is struck through
 - [ ] (With results) a knockout loser auto-flips to eliminated after a finished match
+- [ ] Once the Round of 32 is fully drawn, group-stage non-qualifiers (e.g. a team that
+      finished bottom of its group) show **Eliminated · "Group stage"**
+- [ ] Re-syncing after the knockout bracket resolves does **not** duplicate fixtures:
+      `/api/matches` stays at **104** (16 r32 / 8 r16 / 4 qf / 2 sf / 1 third / 1 final),
+      and stale placeholder slots (`2A`, `3A/B/C/D/F`) are pruned, not left alongside the
+      resolved fixtures
 - [ ] **Clear override** → team returns to its auto-derived status on recompute
 
 ## 6. Champion & payout

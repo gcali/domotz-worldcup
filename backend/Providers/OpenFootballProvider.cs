@@ -94,7 +94,11 @@ public class OpenFootballProvider : IResultsProvider
                 }
             }
 
-            var externalId = $"of:{round}:{t1}-vs-{t2}:{date}";
+            // Knockout fixtures carry a stable feed match number ("num"); key on it so a slot
+            // resolving from a placeholder ("2A") to a real team keeps the same identity. Group
+            // matches have no "num" but stable team names, so fall back to the name-based key.
+            var num = m.TryGetProperty("num", out var nEl) && nEl.TryGetInt32(out var nv) ? (int?)nv : null;
+            var externalId = num is not null ? $"of:{num}" : $"of:{round}:{t1}-vs-{t2}:{date}";
             result.Add(new ProviderMatch(externalId, stage, label, kickoff,
                 homeCode, awayCode, homePh, awayPh, status, homeScore, awayScore, winnerCode, null));
         }
