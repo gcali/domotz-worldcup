@@ -48,7 +48,7 @@ public class BoardService
         var now = DateTime.UtcNow;
 
         MatchDto ToDto(Match m) => new(
-            m.Id, m.Stage, m.Label, m.KickoffUtc, m.Status.ToString(),
+            m.Id, m.Stage, m.Label, AsUtc(m.KickoffUtc), m.Status.ToString(),
             Side(m.HomeTeamId, m.HomePlaceholder), Side(m.AwayTeamId, m.AwayPlaceholder),
             m.HomeScore, m.AwayScore, m.Minute);
 
@@ -129,8 +129,14 @@ public class BoardService
         }
 
         return matches.Select(m => new MatchDto(
-            m.Id, m.Stage, m.Label, m.KickoffUtc, m.Status.ToString(),
+            m.Id, m.Stage, m.Label, AsUtc(m.KickoffUtc), m.Status.ToString(),
             Side(m.HomeTeamId, m.HomePlaceholder), Side(m.AwayTeamId, m.AwayPlaceholder),
             m.HomeScore, m.AwayScore, m.Minute)).ToList();
     }
+
+    // Kickoffs are stored as UTC, but the SQLite/EF round-trip returns DateTimeKind.Unspecified,
+    // which System.Text.Json emits without a 'Z'. Re-stamp as UTC so the JSON carries the offset
+    // and the browser can convert it to the viewer's local timezone.
+    private static DateTime AsUtc(DateTime dt) =>
+        dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt.ToUniversalTime();
 }
