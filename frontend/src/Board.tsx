@@ -103,14 +103,26 @@ function StatusChip({ team }: { team: TeamBoard | null }) {
 const STAGE_SHORT: Record<string, string> = {
   r32: 'R32', r16: 'R16', qf: 'QF', sf: 'SF', third: '3rd place', final: 'Final',
 }
+// The round a knockout winner advances into.
+const NEXT_STAGE: Record<string, string> = { r32: 'r16', r16: 'qf', qf: 'sf', sf: 'final' }
 
-// Subtitle = where the team is now in the tournament: the round of its current/next match
-// (or the last one it played), falling back to the group name while still in the group stage.
+// Subtitle = where the team is now in the tournament. Prefer the round of its current/upcoming
+// match. With no fixture drawn yet, infer from the last match: an Alive team whose last game was
+// a knockout must have won it (a loss would mark it Eliminated), so it has advanced a round.
 function teamStage(team: TeamBoard): string {
   if (team.isChampion) return 'Champion'
-  const active = team.inProgressMatch ?? team.liveMatch ?? team.nextMatch ?? team.lastMatch
-  if (!active || active.stage === 'group') return team.group
-  return STAGE_SHORT[active.stage] ?? team.group
+
+  const upcoming = team.inProgressMatch ?? team.liveMatch ?? team.nextMatch
+  if (upcoming) return upcoming.stage === 'group' ? team.group : STAGE_SHORT[upcoming.stage] ?? team.group
+
+  const last = team.lastMatch
+  if (!last || last.stage === 'group') return team.group
+
+  if (team.status === 'Alive') {
+    const next = NEXT_STAGE[last.stage]
+    return next ? STAGE_SHORT[next] ?? team.group : 'Champion' // advanced past it (won the final ⇒ champion)
+  }
+  return STAGE_SHORT[last.stage] ?? team.group // eliminated at this round
 }
 
 function TeamHero({ team }: { team: TeamBoard }) {
