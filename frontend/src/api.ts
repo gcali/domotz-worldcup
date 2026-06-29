@@ -32,6 +32,7 @@ export interface TeamBoard {
   liveMatch: Match | null
   nextMatch: Match | null
   lastMatch: Match | null
+  inProgressMatch: Match | null
 }
 
 export interface PlayerBoard {

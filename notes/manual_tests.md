@@ -26,6 +26,10 @@
 - [ ] Player cards list owned teams with flags and an "N alive" pill
 - [ ] Each entry shows the **last match result** (W/D/L + score + opponent) and the
       **next fixture** (opponent + kickoff); an undecided knockout opponent shows **TBD**
+- [ ] Kickoff times render in the **viewer's local timezone**, 24-hour clock
+- [ ] A match that has kicked off but isn't finished — even with **no api-football key**
+      (openfootball never sets InPlay) — shows an **"in progress"** badge / "● playing"
+      chip rather than disappearing from the card
 - [ ] Layout is usable at phone width (single column, no overflow)
 
 ## 3. Admin auth gate

@@ -15,7 +15,7 @@ public record MatchDto(
 public record TeamBoardDto(
     int Id, string Code, string Name, string Flag, string Group,
     string Status, string? EliminatedStage, bool IsChampion,
-    MatchDto? LiveMatch, MatchDto? NextMatch, MatchDto? LastMatch);
+    MatchDto? LiveMatch, MatchDto? NextMatch, MatchDto? LastMatch, MatchDto? InProgressMatch);
 
 public record PlayerBoardDto(int Id, string Name, int AliveCount, List<TeamBoardDto> Teams);
 
@@ -28,6 +28,9 @@ public record BoardDto(
 
 public class BoardService
 {
+    // 90' + half-time + stoppage/ET headroom — mirrors PollerService's live window.
+    private static readonly TimeSpan MatchDuration = TimeSpan.FromMinutes(130);
+
     private readonly AppDbContext _db;
     private readonly SettingsStore _settings;
 
@@ -72,10 +75,18 @@ public class BoardService
             .Where(m => m.Status == MatchStatus.Finished && (m.HomeTeamId == teamId || m.AwayTeamId == teamId))
             .OrderByDescending(m => m.KickoffUtc).Select(ToDto).FirstOrDefault();
 
+        // Schedule-implied "playing now": kicked off, not yet finished, still inside a match-length
+        // window. Catches in-progress games when no live provider (api-football) flips them to InPlay.
+        MatchDto? InProgressFor(int teamId) => matches
+            .Where(m => m.Status != MatchStatus.Finished && m.Status != MatchStatus.InPlay &&
+                        m.KickoffUtc <= now && m.KickoffUtc >= now - MatchDuration &&
+                        (m.HomeTeamId == teamId || m.AwayTeamId == teamId))
+            .OrderBy(m => m.KickoffUtc).Select(ToDto).FirstOrDefault();
+
         TeamBoardDto TeamDto(Team t) => new(
             t.Id, t.FifaCode, t.Name, t.FlagEmoji, t.GroupName,
             t.Status.ToString(), t.EliminatedStage, t.IsChampion,
-            LiveFor(t.Id), NextFor(t.Id), LastFor(t.Id));
+            LiveFor(t.Id), NextFor(t.Id), LastFor(t.Id), InProgressFor(t.Id));
 
         var playerDtos = players.Select(p =>
         {

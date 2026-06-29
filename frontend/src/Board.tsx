@@ -96,6 +96,7 @@ function StatusChip({ team }: { team: TeamBoard | null }) {
   if (team.isChampion) return <span className="status-chip champ">🏆 winner</span>
   if (team.status === 'Eliminated') return <span className="status-chip out">out</span>
   if (team.liveMatch) return <span className="status-chip live">● live</span>
+  if (team.inProgressMatch) return <span className="status-chip live">● playing</span>
   return <span className="status-chip in">in it</span>
 }
 
@@ -121,6 +122,8 @@ function TeamHero({ team }: { team: TeamBoard }) {
           <span className="badge out">❌ {team.eliminatedStage ?? 'Out'}</span>
         ) : team.liveMatch ? (
           <span className="badge live">⚽ {scoreText(team.liveMatch)} · {team.liveMatch.minute ?? 'LIVE'} vs {opponent(team.liveMatch, team.id).name}</span>
+        ) : team.inProgressMatch ? (
+          <span className="badge live">⚽ In progress · vs {opponent(team.inProgressMatch, team.id).name}</span>
         ) : (
           <span className="badge ok">🟢 In the running</span>
         )}
